@@ -44,6 +44,9 @@ class Predictor(BasePredictor):
         input_points = []
         input_labels = []
 
+        positive_prompts = json.loads(positive_prompts)
+        negative_prompts = json.loads(negative_prompts)
+
         # add positive promtps and 1 in the same index in labels
         for point in positive_prompts:
             input_points.append(point)
