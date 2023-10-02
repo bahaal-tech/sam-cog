@@ -15,7 +15,7 @@ class Predictor(BasePredictor):
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
         # self.model = torch.load("./weights.pth")
-        self.model = sam_model_registry["vit_h"](checkpoint="checkpoints/sam_vit_h_4b8939.pth")
+        self.model = sam_model_registry["vit_h"](checkpoint="sam_vit_h_4b8939.pth")
         self.predictor = SamPredictor(self.model)
 
     # returns a base64 encoded image
