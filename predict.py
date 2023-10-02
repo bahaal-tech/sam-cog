@@ -57,6 +57,13 @@ class Predictor(BasePredictor):
             input_points.append(point)
             input_labels.append(0)
 
+        print("\n\n********************\n\n")
+        print("input points are -")
+        print(input_points)
+        print("input labels are -")
+        print(input_labels)
+        print("\n\n********************\n\n")
+
         masks, scores, _ = self.predictor.predict(
             point_coords=input_points,
             point_labels=input_labels,
