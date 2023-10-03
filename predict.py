@@ -2,10 +2,9 @@
 # https://github.com/replicate/cog/blob/main/docs/python.md
 
 import cv2
+import copy
 import json
-import base64
 import numpy as np
-from io import BytesIO
 from cog import BasePredictor, Input, Path
 from segment_anything import SamPredictor, sam_model_registry
 
@@ -20,9 +19,7 @@ class Predictor(BasePredictor):
     # returns a base64 encoded image
     def predict(
         self,
-        image_b64: str = Input(
-            description="Image as b64 encoded string"
-        ),
+        image: Path = Input("Image to be segmented"),
         positive_prompts: str = Input(
             description="Stringified array of [x, y] values representing points",
             default="[]"
@@ -31,12 +28,10 @@ class Predictor(BasePredictor):
             description="Stringified array of [x, y] values representing points",
             default="[]"
         )
-    ) -> str:
+    ) -> list[Path]:
         
         # decode the base 64 encoded image and load it using cv2
-        image_bytes = base64.b64decode(image_b64)
-        image_array = np.frombuffer(image_bytes, dtype=np.uint8)
-        image = cv2.imdecode(image_array, flags=cv2.IMREAD_COLOR)
+        image = cv2.imread(str(image))
 
         self.predictor.set_image(image)
 
@@ -45,8 +40,6 @@ class Predictor(BasePredictor):
 
         positive_prompts = json.loads(positive_prompts)
         negative_prompts = json.loads(negative_prompts)
-
-        print("postive and negative promtps parsed to arrays")
 
         # add positive promtps and 1 in the same index in labels
         for point in positive_prompts:
@@ -57,6 +50,8 @@ class Predictor(BasePredictor):
         for point in negative_prompts:
             input_points.append(point)
             input_labels.append(0)
+        
+        input_points = np.array(input_points)
 
         print("\n\n********************\n\n")
         print("input points are -")
@@ -76,17 +71,15 @@ class Predictor(BasePredictor):
         # reference for "cutting" out segmented images -
         # https://github.com/facebookresearch/segment-anything/issues/221#issuecomment-1614280903
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        for idx, mask in enumerate(masks):
+            segmented_image_path = f"/tmp/{idx}.png"
 
-        for mask in masks:
             # converting false parts to white color
-            image[mask==False] = [255, 255, 255]
+            image_copy = copy.deepcopy(image)
+            image_copy[mask==False] = [255, 255, 255]
+            cv2.imwrite(segmented_image_path, image_copy)
 
             # add image to segmented images by converting them to b64
-            segmented_images.append(
-                base64.b64encode(
-                    image.tobytes()
-                )
-            )
+            segmented_images.append(Path(segmented_image_path))
 
-        return json.dumps(segmented_images)
+        return segmented_images
