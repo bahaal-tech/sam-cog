@@ -16,7 +16,7 @@ class Predictor(BasePredictor):
         self.model = sam_model_registry["vit_h"](checkpoint="sam_vit_h_4b8939.pth")
         self.predictor = SamPredictor(self.model)
 
-    # returns a base64 encoded image
+    # returns an array of paths of segmented images
     def predict(
         self,
         image: Path = Input("Image to be segmented"),
@@ -53,13 +53,6 @@ class Predictor(BasePredictor):
         
         input_points = np.array(input_points)
 
-        print("\n\n********************\n\n")
-        print("input points are -")
-        print(input_points)
-        print("input labels are -")
-        print(input_labels)
-        print("\n\n********************\n\n")
-
         masks, scores, _ = self.predictor.predict(
             point_coords=input_points,
             point_labels=input_labels,
@@ -68,7 +61,7 @@ class Predictor(BasePredictor):
 
         segmented_images = []
 
-        # reference for "cutting" out segmented images -
+        # reference for "cutting" out segmented images using mask -
         # https://github.com/facebookresearch/segment-anything/issues/221#issuecomment-1614280903
 
         for idx, mask in enumerate(masks):
@@ -77,9 +70,10 @@ class Predictor(BasePredictor):
             # converting false parts to white color
             image_copy = copy.deepcopy(image)
             image_copy[mask==False] = [255, 255, 255]
+
+            # writing segmented image to disk
             cv2.imwrite(segmented_image_path, image_copy)
 
-            # add image to segmented images by converting them to b64
             segmented_images.append(Path(segmented_image_path))
 
         return segmented_images
