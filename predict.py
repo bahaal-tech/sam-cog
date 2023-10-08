@@ -4,8 +4,9 @@
 import cv2
 import copy
 import json
+import base64
 import numpy as np
-from cog import BasePredictor, Input, Path
+from cog import BasePredictor, Input, Path, File
 from segment_anything import SamPredictor, sam_model_registry
 
 
@@ -19,7 +20,8 @@ class Predictor(BasePredictor):
     # returns an array of paths of segmented images
     def predict(
         self,
-        image: Path = Input("Image to be segmented"),
+        image: Path = Input(description="URL of the image to be segmented", default=None),
+        image_file_b64: str = Input(description="Image encoded as a base64 string", default=None),
         positive_prompts: str = Input(
             description="Stringified array of [x, y] values representing points",
             default="[]"
@@ -30,10 +32,15 @@ class Predictor(BasePredictor):
         )
     ) -> list[Path]:
         
-        # decode the base 64 encoded image and load it using cv2
-        image = cv2.imread(str(image))
+        if image_file_b64:
+            im_bytes = base64.b64decode(image_file_b64)
+            im_arr = np.frombuffer(im_bytes, dtype=np.uint8)  # im_arr is one-dim Numpy array
+            self.image = cv2.imdecode(im_arr, flags=cv2.IMREAD_COLOR)
+        else:
+            self.image = cv2.imread(str(image))
 
-        self.predictor.set_image(image)
+
+        self.predictor.set_image(self.image)
 
         input_points = []
         input_labels = []
@@ -68,7 +75,7 @@ class Predictor(BasePredictor):
             segmented_image_path = f"/tmp/{idx}.png"
 
             # converting false parts to white color
-            image_copy = copy.deepcopy(image)
+            image_copy = copy.deepcopy(self.image)
             image_copy[mask==False] = [255, 255, 255]
 
             # writing segmented image to disk
